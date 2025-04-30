@@ -10,6 +10,9 @@ AVATAR_ANIMATED_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3lxeGY
 ASSISTANT_NAME = "Assistente Matheus"
 USER_AVATAR_EMOJI = "👤"
 
+# *** COLE O LINK DA IMAGEM DE FUNDO AQUI: ***
+BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZThva2tsankxMHlyNTZxd2tjMTk3YXkwNjRkbTA5cnRyeXNoZ3ZsOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eHdZZgmLheaqRT6kVX/giphy.gif"
+
 st.set_page_config(
     page_title=ASSISTANT_NAME,
     page_icon="🤖",
@@ -28,18 +31,62 @@ st.markdown(f"""
 <style>
     /* --- Fundo Geral --- */
     .stApp {{
-        background-color: #A020F0; /* Roxo */
+        background-color: #A020F0; /* Roxo (será substituído pela imagem se o link for fornecido) */
+        {f"background-image: url('{BACKGROUND_IMAGE_URL}'); background-size: cover; background-repeat: no-repeat;" if BACKGROUND_IMAGE_URL else ""}
+        font-size: 0.95rem; /* Diminuindo um pouco o tamanho da fonte geral */
+        display: flex; /* Usando Flexbox para centralizar o container do chat */
+        justify-content: center; /* Centraliza horizontalmente */
+        align-items: center; /* Centraliza verticalmente (se a altura da tela for maior) */
+        min-height: 100vh; /* Garante que o fundo ocupe toda a altura da tela */
+        margin: 0; /* Remove margens padrão do body */
     }}
 
     /* --- Container Principal do Chat (Cartão Central) --- */
+    .main {{ /* Adicionando um container 'main' para o block-container */
+        display: flex;
+        justify-content: center; /* Centraliza o block-container dentro do 'main' */
+        width: 100%; /* Garante que 'main' ocupe toda a largura disponível */
+        align-items: flex-end; /* Alinha o quadro branco na parte inferior (acima da input) */
+        padding-bottom: 50px; /* Espaço para a barra de input não sobrepor o quadro */
+    }}
+
     .main .block-container {{
-        max-width: 750px;
-        margin: 2rem auto;
-        padding: 1.5rem 2rem 4rem 2rem;
-        background-color: #FFFFFF;
+        max-width: 580px;
+        margin-top: 2rem; /* Ajustando a margem superior */
+        padding: 1rem 1.5rem 3rem 1.5rem; /* Reduzindo um pouco o padding */
+        background-color: rgba(255, 255, 255, 0.8); /* Fundo branco com 80% de opacidade */
         border-radius: 15px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
         border: 1px solid #D1E8D2;
+        max-height: 600px; /* Reduzindo um pouco a altura máxima */
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch; /* Estica os itens internos para ocupar a largura */
+    }}
+
+    /* Estilização da barra de rolagem (Webkit browsers) */
+    .main .block-container::-webkit-scrollbar {{
+        width: 8px;
+    }}
+
+    .main .block-container::-webkit-scrollbar-track {{
+        background: rgba(241, 241, 241, 0.5); /* Barra de rolagem um pouco transparente */
+    }}
+
+    .main .block-container::-webkit-scrollbar-thumb {{
+        background: #888;
+        border-radius: 4px;
+    }}
+
+    .main .block-container::-webkit-scrollbar-thumb:hover {{
+        background: #555;
+    }}
+
+    /* Estilização da barra de rolagem (Firefox) */
+    .main .block-container {{
+        scrollbar-width: thin;
+        scrollbar-color: #888 rgba(241, 241, 241, 0.5);
     }}
 
     /* --- Cabeçalho: Avatar e Título --- */
@@ -47,51 +94,55 @@ st.markdown(f"""
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
+        width: 100%;
     }}
     .avatar-title-container img.chat-avatar {{
-        width: 85px;
-        height: 85px;
+        width: 75px;
+        height: 75px;
         border-radius: 50%;
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.6rem;
         box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
         border: 2px solid #FFFFFF;
     }}
     .avatar-title-container h1 {{
-        color: #FFFFFF; /* Branco para contraste com o roxo */
+        color: #000000;
         font-weight: 700;
-        font-size: 2.1em;
+        font-size: 1.8em;
         margin: 0;
         text-align: center;
     }}
 
     /* --- Balões de Mensagem --- */
     .stChatMessage {{
-        border-radius: 12px;
-        padding: 14px 18px;
-        margin-bottom: 12px;
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
         border: none;
-        max-width: 90%;
-        word-wrap: break-word;
+        word-wrap: break-word; /* Garante que as palavras longas quebrem para a próxima linha */
         color: #111111;
+        font-size: 0.9rem;
+        align-self: flex-start;
+        width: 100%; /* Faz a mensagem ocupar a largura total disponível */
+        display: block; /* Garante que ocupe a linha inteira */
+    }}
+    [data-testid="chatAvatarIcon-user"] + div.stChatMessage {{
+        align-self: flex-end;
+    }}
+    [data-testid="chatAvatarIcon-assistant"] + div.stChatMessage {{
+        background-color: #E0BBE3;
+        margin-right: auto;
+        border-left: 4px solid #BB86FC;
     }}
     .stChatMessage p, .stChatMessage li, .stChatMessage .stMarkdown {{
         color: #111111 !important;
     }}
 
-    /* Mensagens do Assistente */
-    [data-testid="chatAvatarIcon-assistant"] + div.stChatMessage {{
-        background-color: #E0BBE3; /* Lilás claro */
-        margin-right: auto;
-        border-left: 5px solid #BB86FC; /* Roxo mais claro */
-    }}
-
     /* Mensagens do Usuário */
     [data-testid="chatAvatarIcon-user"] + div.stChatMessage {{
-        background-color: #D1C4E9; /* Lavanda claro */
+        background-color: #D1C4E9;
         margin-left: auto;
-        border-right: 5px solid #9575CD; /* Roxo médio */
     }}
 
     /* --- Área de Input na Base --- */
@@ -100,40 +151,45 @@ st.markdown(f"""
         bottom: 0;
         left: 0;
         width: 100%;
-        background-color: #F3E5F5; /* Rosa bem claro */
-        border-top: 1px solid #CE93D8; /* Rosa médio */
-        padding: 12px 0;
-        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+        background-color: #F3E5F5;
+        border-top: none; /* Removendo a barra preta */
+        padding: 8px 0;
+        display: flex;
+        justify-content: center;
+        z-index: 1000; /* Garante que a barra de input fique acima do conteúdo */
     }}
     .stChatInputContainer > div {{
-        max-width: 750px;
-        margin: 0 auto;
-        padding: 0 1rem;
+        max-width: 580px;
+        padding: 0 0.8rem;
+        display: flex;
+        align-items: center;
     }}
     .stChatInputContainer textarea {{
+        flex-grow: 1;
         background-color: #FFFFFF;
         border: 1px solid #C5C5C5;
-        border-radius: 20px;
-        padding: 10px 15px;
+        border-radius: 18px;
+        padding: 8px 12px;
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
         color: #111111;
+        font-size: 0.9rem;
+        margin-right: 6px;
     }}
     .stChatInputContainer button {{
-        background-color: #9C27B0; /* Roxo mais escuro */
+        background-color: #9C27B0;
         color: white;
         border-radius: 50%;
         border: none;
-        width: 40px;
-        height: 40px;
+        width: 35px;
+        height: 35px;
         transition: background-color 0.2s ease, transform 0.1s ease;
-        margin-left: 8px;
     }}
     .stChatInputContainer button:hover {{
-        background-color: #7B1FA2; /* Roxo ainda mais escuro */
-        transform: scale(1.05);
+        background-color: #7B1FA2;
+        transform: scale(1.03);
     }}
     .stChatInputContainer button:active {{
-        transform: scale(0.95);
+        transform: scale(0.97);
     }}
 
 </style>
@@ -148,7 +204,7 @@ def main():
     """, unsafe_allow_html=True)
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": f"Olá! Como posso te ajudar hoje?"}]
+        st.session_state.messages = [{"role": "assistant", "content": f"Oii meu querido, fala comigo, tem alguma pergunta?"}]
 
     for message in st.session_state.messages:
         role = message["role"]
