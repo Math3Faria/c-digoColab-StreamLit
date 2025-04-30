@@ -1,251 +1,187 @@
-import os
-import google.generativeai as genai
 import streamlit as st
-from dotenv import load_dotenv
-import time
+from PIL import Image
+import io
+import requests
+from datetime import datetime
+from googletrans import Translator
+import base64  # Adicionado para decodificação base64
 
-load_dotenv()
-
-AVATAR_ANIMATED_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3lxeGY1MnV2OG0yaGQxcDhxcWNib3N0aG8ydGt1bHp4eTdoaDJicyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/mlvseq9yvZhba/giphy.gif"
-ASSISTANT_NAME = "Assistente Matheus"
-USER_AVATAR_EMOJI = "👤"
-
-# *** COLE O LINK DA IMAGEM DE FUNDO AQUI: ***
-BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZThva2tsankxMHlyNTZxd2tjMTk3YXkwNjRkbTA5cnRyeXNoZ3ZsOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eHdZZgmLheaqRT6kVX/giphy.gif"
-
+# Configuração da página
 st.set_page_config(
-    page_title=ASSISTANT_NAME,
-    page_icon="🤖",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    page_title="AI Image Generator - Stability AI",
+    page_icon="🎨",
+    layout="wide"
 )
 
-def get_api_key():
-    api_key = os.environ.get("GEMINI_API_KEY")
+# Dimensões permitidas para SDXL
+ALLOWED_DIMENSIONS = [
+    (1024, 1024), 
+    (1152, 896), (896, 1152),
+    (1216, 832), (832, 1216),
+    (1344, 768), (768, 1344),
+    (1536, 640), (640, 1536)
+]
+
+# Sidebar para configurações
+with st.sidebar:
+    st.title("Settings")
+    api_key = st.text_input("Enter your Stability AI API Key", type="password")
+    st.markdown("[Get API Key](https://platform.stability.ai/)")
+    
+    st.divider()
+    st.markdown("### Generation Parameters")
+    cfg_scale = st.slider("Creativity (CFG Scale)", 1.0, 20.0, 7.0)
+    steps = st.slider("Steps", 10, 150, 30)
+    
+    # Selecionador de dimensões permitidas
+    dimension_options = [f"{w}×{h}" for w, h in ALLOWED_DIMENSIONS]
+    selected_dim = st.selectbox("Dimensions", dimension_options, index=0)
+    width, height = map(int, selected_dim.split('×'))
+    
+    sampler = st.selectbox("Sampling Method", [
+        "DDIM", "DDPM", "K_DPMPP_2M", "K_DPMPP_2S_ANCESTRAL", 
+        "K_DPM_2", "K_DPM_2_ANCESTRAL", "K_EULER", 
+        "K_EULER_ANCESTRAL", "K_HEUN", "K_LMS"
+    ], index=6)
+    
+    st.divider()
+    st.markdown("Made with ❤️ using [Stability AI](https://stability.ai/) and [Streamlit](https://streamlit.io/)")
+
+# Interface principal
+st.title("🎨 AI Image Generator with Stability AI")
+st.caption("Describe the image you want and Stable Diffusion XL will generate it for you!")
+
+# Inicializa o histórico de chat
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Exibe o histórico de mensagens
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        if message["type"] == "text":
+            st.markdown(message["content"])
+        elif message["type"] == "image":
+            st.image(message["content"])
+
+# Função para traduzir para inglês
+def translate_to_english(text):
+    try:
+        translator = Translator()
+        translation = translator.translate(text, dest='en')
+        return translation.text
+    except:
+        return text  # Se falhar, retorna o texto original
+
+# Função para gerar imagens usando a API do Stability AI
+def generate_image_with_stability(prompt, api_key, cfg_scale, steps, width, height, sampler):
+    engine_id = "stable-diffusion-xl-1024-v1-0"
+    api_host = "https://api.stability.ai"
+    
+    # Garante que o prompt está em inglês
+    english_prompt = translate_to_english(prompt)
+    
+    response = requests.post(
+        f"{api_host}/v1/generation/{engine_id}/text-to-image",
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        },
+        json={
+            "text_prompts": [{"text": english_prompt}],
+            "cfg_scale": cfg_scale,
+            "height": height,
+            "width": width,
+            "samples": 1,
+            "steps": steps,
+            "sampler": sampler,
+        },
+    )
+
+    if response.status_code != 200:
+        raise Exception(f"API Error: {response.text}")
+    
+    data = response.json()
+    
+    # Corrige o tratamento da imagem base64
+    image_data = base64.b64decode(data["artifacts"][0]["base64"])  # Decodifica a string base64 para bytes
+    return Image.open(io.BytesIO(image_data))
+
+# Input do usuário
+if prompt := st.chat_input("Describe the image you want to create..."):
+    # Adiciona a mensagem do usuário ao histórico
+    st.session_state.messages.append({
+        "role": "user", 
+        "content": prompt,
+        "type": "text"
+    })
+    
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Verifica se a API key foi fornecida
     if not api_key:
-        st.error("🚨 Erro Crítico: A variável de ambiente GEMINI_API_KEY não foi definida! Verifique seu arquivo `.env` ou as configurações de ambiente.")
+        st.error("Please enter your Stability AI API Key")
         st.stop()
-    return api_key
-
-st.markdown(f"""
-<style>
-    /* --- Fundo Geral --- */
-    .stApp {{
-        background-color: #A020F0; /* Roxo (será substituído pela imagem se o link for fornecido) */
-        {f"background-image: url('{BACKGROUND_IMAGE_URL}'); background-size: cover; background-repeat: no-repeat;" if BACKGROUND_IMAGE_URL else ""}
-        font-size: 0.95rem; /* Diminuindo um pouco o tamanho da fonte geral */
-        display: flex; /* Usando Flexbox para centralizar o container do chat */
-        justify-content: center; /* Centraliza horizontalmente */
-        align-items: center; /* Centraliza verticalmente (se a altura da tela for maior) */
-        min-height: 100vh; /* Garante que o fundo ocupe toda a altura da tela */
-        margin: 0; /* Remove margens padrão do body */
-    }}
-
-    /* --- Container Principal do Chat (Cartão Central) --- */
-    .main {{ /* Adicionando um container 'main' para o block-container */
-        display: flex;
-        justify-content: center; /* Centraliza o block-container dentro do 'main' */
-        width: 100%; /* Garante que 'main' ocupe toda a largura disponível */
-        align-items: flex-end; /* Alinha o quadro branco na parte inferior (acima da input) */
-        padding-bottom: 50px; /* Espaço para a barra de input não sobrepor o quadro */
-    }}
-
-    .main .block-container {{
-        max-width: 580px;
-        margin-top: 2rem; /* Ajustando a margem superior */
-        padding: 1rem 1.5rem 3rem 1.5rem; /* Reduzindo um pouco o padding */
-        background-color: rgba(255, 255, 255, 0.8); /* Fundo branco com 80% de opacidade */
-        border-radius: 15px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-        border: 1px solid #D1E8D2;
-        max-height: 600px; /* Reduzindo um pouco a altura máxima */
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch; /* Estica os itens internos para ocupar a largura */
-    }}
-
-    /* Estilização da barra de rolagem (Webkit browsers) */
-    .main .block-container::-webkit-scrollbar {{
-        width: 8px;
-    }}
-
-    .main .block-container::-webkit-scrollbar-track {{
-        background: rgba(241, 241, 241, 0.5); /* Barra de rolagem um pouco transparente */
-    }}
-
-    .main .block-container::-webkit-scrollbar-thumb {{
-        background: #888;
-        border-radius: 4px;
-    }}
-
-    .main .block-container::-webkit-scrollbar-thumb:hover {{
-        background: #555;
-    }}
-
-    /* Estilização da barra de rolagem (Firefox) */
-    .main .block-container {{
-        scrollbar-width: thin;
-        scrollbar-color: #888 rgba(241, 241, 241, 0.5);
-    }}
-
-    /* --- Cabeçalho: Avatar e Título --- */
-    .avatar-title-container {{
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin-bottom: 1rem;
-        width: 100%;
-    }}
-    .avatar-title-container img.chat-avatar {{
-        width: 75px;
-        height: 75px;
-        border-radius: 50%;
-        margin-bottom: 0.6rem;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
-        border: 2px solid #FFFFFF;
-    }}
-    .avatar-title-container h1 {{
-        color: #000000;
-        font-weight: 700;
-        font-size: 1.8em;
-        margin: 0;
-        text-align: center;
-    }}
-
-    /* --- Balões de Mensagem --- */
-    .stChatMessage {{
-        border-radius: 10px;
-        padding: 12px 16px;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
-        border: none;
-        word-wrap: break-word; /* Garante que as palavras longas quebrem para a próxima linha */
-        color: #111111;
-        font-size: 0.9rem;
-        align-self: flex-start;
-        width: 100%; /* Faz a mensagem ocupar a largura total disponível */
-        display: block; /* Garante que ocupe a linha inteira */
-    }}
-    [data-testid="chatAvatarIcon-user"] + div.stChatMessage {{
-        align-self: flex-end;
-    }}
-    [data-testid="chatAvatarIcon-assistant"] + div.stChatMessage {{
-        background-color: #E0BBE3;
-        margin-right: auto;
-        border-left: 4px solid #BB86FC;
-    }}
-    .stChatMessage p, .stChatMessage li, .stChatMessage .stMarkdown {{
-        color: #111111 !important;
-    }}
-
-    /* Mensagens do Usuário */
-    [data-testid="chatAvatarIcon-user"] + div.stChatMessage {{
-        background-color: #D1C4E9;
-        margin-left: auto;
-    }}
-
-    /* --- Área de Input na Base --- */
-    .stChatInputContainer {{
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: #F3E5F5;
-        border-top: none; /* Removendo a barra preta */
-        padding: 8px 0;
-        display: flex;
-        justify-content: center;
-        z-index: 1000; /* Garante que a barra de input fique acima do conteúdo */
-    }}
-    .stChatInputContainer > div {{
-        max-width: 580px;
-        padding: 0 0.8rem;
-        display: flex;
-        align-items: center;
-    }}
-    .stChatInputContainer textarea {{
-        flex-grow: 1;
-        background-color: #FFFFFF;
-        border: 1px solid #C5C5C5;
-        border-radius: 18px;
-        padding: 8px 12px;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        color: #111111;
-        font-size: 0.9rem;
-        margin-right: 6px;
-    }}
-    .stChatInputContainer button {{
-        background-color: #9C27B0;
-        color: white;
-        border-radius: 50%;
-        border: none;
-        width: 35px;
-        height: 35px;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-    }}
-    .stChatInputContainer button:hover {{
-        background-color: #7B1FA2;
-        transform: scale(1.03);
-    }}
-    .stChatInputContainer button:active {{
-        transform: scale(0.97);
-    }}
-
-</style>
-""", unsafe_allow_html=True)
-
-def main():
-    st.markdown(f"""
-    <div class="avatar-title-container">
-        <img src="{AVATAR_ANIMATED_URL}" alt="Avatar Animado" class="chat-avatar">
-        <h1>{ASSISTANT_NAME}</h1>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": f"Oii meu querido, fala comigo, tem alguma pergunta?"}]
-
-    for message in st.session_state.messages:
-        role = message["role"]
-        content = message["content"]
-        avatar_display = AVATAR_ANIMATED_URL if role == "assistant" else USER_AVATAR_EMOJI
-        with st.chat_message(role, avatar=avatar_display):
-            st.markdown(content)
-
-    if prompt := st.chat_input("Digite sua mensagem aqui..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
-            message_placeholder = st.empty()
-            message_placeholder.markdown("▌")
-            message_placeholder.markdown("Digitando... ▌")
-
+    
+    # Resposta do assistente
+    with st.chat_message("assistant"):
+        with st.spinner("Generating your image..."):
             try:
-                api_key = get_api_key()
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                response = model.generate_content(prompt)
-                full_response = response.text
-
-                message_placeholder.markdown("")
-                if full_response:
-                    for i in range(len(full_response)):
-                        message_placeholder.markdown(full_response[:i+1] + "▌")
-                        time.sleep(0.02)
-                    message_placeholder.markdown(full_response)
-                else:
-                    message_placeholder.markdown("_Resposta vazia._")
-
+                # Gera a imagem
+                generated_image = generate_image_with_stability(
+                    prompt=prompt,
+                    api_key=api_key,
+                    cfg_scale=cfg_scale,
+                    steps=steps,
+                    width=width,
+                    height=height,
+                    sampler=sampler
+                )
+                
+                # Exibe a imagem
+                st.image(generated_image, use_column_width=True)
+                
+                # Adiciona ao histórico
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": generated_image,
+                    "type": "image"
+                })
+                
+                # Opção para baixar a imagem
+                img_byte_arr = io.BytesIO()
+                generated_image.save(img_byte_arr, format='PNG')
+                img_byte_arr = img_byte_arr.getvalue()
+                
+                st.download_button(
+                    label="Download Image",
+                    data=img_byte_arr,
+                    file_name=f"generated_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                    mime="image/png"
+                )
+                
             except Exception as e:
-                error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
-                st.error(error_msg)
-                full_response = error_msg
-                message_placeholder.markdown(full_response)
+                st.error(f"An error occurred: {str(e)}")
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": f"Sorry, an error occurred: {str(e)}",
+                    "type": "text"
+                })
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+# Seção de exemplos
+st.divider()
+st.markdown("### 📌 Prompt Examples")
+col1, col2, col3 = st.columns(3)
 
-if __name__ == "__main__":
-    main()
+with col1:
+    st.markdown("**Portrait**")
+    st.code("A realistic portrait of an elderly woman with wise eyes, intricate facial details, soft studio lighting")
+
+with col2:
+    st.markdown("**Landscape**")
+    st.code("A futuristic landscape of a floating city over the ocean at sunset, cyberpunk style, vibrant colors")
+
+with col3:
+    st.markdown("**Concept Art**")
+    st.code("A golden mechanical dragon with energy wings, complex details, snowy mountain background, game concept art style")

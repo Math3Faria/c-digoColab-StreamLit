@@ -11,7 +11,7 @@ ASSISTANT_NAME = "Assistente Matheus"
 USER_AVATAR_EMOJI = "👤"
 
 # *** COLE O LINK DA IMAGEM DE FUNDO AQUI: ***
-BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXJxNnp6cGJmOHBhYW5ib2N1ZGdydW96NHNsdGJmdDF1ams3amIydyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
+BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjduZ2l2MmhjaWx4OWE5eXdvcjBvcWlianYxY2w5NTc4eW91YXlrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
 
 st.set_page_config(
     page_title=ASSISTANT_NAME,
@@ -45,6 +45,7 @@ st.markdown(f"""
     .block-container {{
         max-width: 580px;
         margin: 2rem auto; /* Centraliza horizontalmente e adiciona margem vertical */
+        padding: 1rem 1.5rem 1.5rem 1.5rem; /* Reduzindo o padding inferior do container principal */
         background-color: rgba(255, 255, 255, 0.8); /* Fundo branco com 80% de opacidade */
         border-radius: 15px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
@@ -58,7 +59,7 @@ st.markdown(f"""
     .chat-messages-container {{
         overflow-y: auto;
         max-height: 500px; /* Altura máxima para a área de mensagens */
-        padding: 1rem 1.5rem; /* Adicionando padding */
+        padding-bottom: 1rem; /* Espaço antes da área de input */
     }}
 
     /* Estilização da barra de rolagem (Webkit browsers) */
@@ -142,7 +143,7 @@ st.markdown(f"""
         margin-left: auto;
     }}
 
-    /* --- Área de Input do Usuário (integrada) --- */
+    /* --- Área de Input do Usuário (agora dentro do block-container) --- */
     .stChatInputContainer {{
         background-color: white; /* Cor de fundo branca */
         padding: 8px 1rem;
@@ -196,7 +197,7 @@ def main():
     if "messages" not in st.session_state:
         st.session_state.messages = [{"role": "assistant", "content": f"Oii meu querido, fala comigo, tem alguma pergunta?"}]
 
-    st.markdown('<div class="block-container">', unsafe_allow_html=True)
+    # Container para as mensagens com barra de rolagem
     st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
     for message in st.session_state.messages:
         role = message["role"]
@@ -206,48 +207,39 @@ def main():
             st.markdown(content)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    with st.container():
-        col1, col2 = st.columns([5, 1])
-        with col1:
-            prompt = st.text_input("Digite sua mensagem aqui...", key="user_input", label_visibility="collapsed")
-        with col2:
-            if st.button("Enviar", use_container_width=True):
-                if prompt:
-                    st.session_state.messages.append({"role": "user", "content": prompt})
-                    # Limpar a caixa de texto após enviar
-                    st.session_state["user_input"] = ""
-                    st.rerun() # Força a atualização para mostrar a mensagem do usuário
+    if prompt := st.chat_input("Digite sua mensagem aqui...", key="chat_input"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
+            st.markdown(prompt)
 
-                    with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
-                        message_placeholder = st.empty()
-                        message_placeholder.markdown("▌")
-                        message_placeholder.markdown("Digitando... ▌")
+        with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
+            message_placeholder = st.empty()
+            message_placeholder.markdown("▌")
+            message_placeholder.markdown("Digitando... ▌")
 
-                        try:
-                            api_key = get_api_key()
-                            genai.configure(api_key=api_key)
-                            model = genai.GenerativeModel('gemini-2.0-flash')
-                            response = model.generate_content(prompt)
-                            full_response = response.text
+            try:
+                api_key = get_api_key()
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-2.0-flash')
+                response = model.generate_content(prompt)
+                full_response = response.text
 
-                            message_placeholder.markdown("")
-                            if full_response:
-                                for i in range(len(full_response)):
-                                    message_placeholder.markdown(full_response[:i+1] + "▌")
-                                    time.sleep(0.02)
-                                message_placeholder.markdown(full_response)
-                            else:
-                                message_placeholder.markdown("_Resposta vazia._")
+                message_placeholder.markdown("")
+                if full_response:
+                    for i in range(len(full_response)):
+                        message_placeholder.markdown(full_response[:i+1] + "▌")
+                        time.sleep(0.02)
+                    message_placeholder.markdown(full_response)
+                else:
+                    message_placeholder.markdown("_Resposta vazia._")
 
-                        except Exception as e:
-                            error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
-                            st.error(error_msg)
-                            full_response = error_msg
-                            message_placeholder.markdown(full_response)
+            except Exception as e:
+                error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
+                st.error(error_msg)
+                full_response = error_msg
+                message_placeholder.markdown(full_response)
 
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 if __name__ == "__main__":
     main()
