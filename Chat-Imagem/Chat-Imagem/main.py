@@ -369,3 +369,19 @@ def main():
     # Seção de exemplos
     st.divider()
     st.markdown("### 📌 Exemplos de Prompt")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("**Portrait**")
+        st.code("A realistic portrait of an elderly woman with wise eyes, intricate facial details, soft studio lighting")
+
+    with col2:
+        st.markdown("**Landscape**")
+        st.code("A futuristic landscape of a floating city over the ocean at sunset, cyberpunk style, vibrant colors")
+
+    with col3:
+        st.markdown("**Concept Art**")
+        st.code("A golden mechanical dragon with energy wings, complex details, snowy mountain background, game concept art style")
+
+if __name__ == "__main__":
+    main()
