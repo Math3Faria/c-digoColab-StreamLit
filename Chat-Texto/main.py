@@ -2,15 +2,12 @@ import os
 import google.generativeai as genai
 import streamlit as st
 from dotenv import load_dotenv
-import time
 
 load_dotenv()
 
 AVATAR_ANIMATED_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3lxeGY1MnV2OG0yaGQxcDhxcWNib3N0aG8ydGt1bHp4eTdoaDJicyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/mlvseq9yvZhba/giphy.gif"
 ASSISTANT_NAME = "Assistente Matheus"
 USER_AVATAR_EMOJI = "👤"
-
-# *** COLE O LINK DA IMAGEM DE FUNDO AQUI: ***
 BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjduZ2l2MmhjaWx4OWE5eXdvcjBvcWlianYxY2w5NTc4eW91YXlrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
 
 st.set_page_config(
@@ -176,56 +173,77 @@ def main():
     """, unsafe_allow_html=True)
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": f"Oii meu querido, fala comigo, tem alguma pergunta?"}]
+        st.session_state.messages = [{"role": "assistant", "content": "Oii meu querido, fala comigo, tem alguma pergunta?"}]
 
-    # Exibir mensagens existentes
+    # Exibe todas as mensagens
     for message in st.session_state.messages:
-        role = message["role"]
-        content = message["content"]
-        avatar_display = AVATAR_ANIMATED_URL if role == "assistant" else USER_AVATAR_EMOJI
-        with st.chat_message(role, avatar=avatar_display):
-            st.markdown(content)
+        avatar = AVATAR_ANIMATED_URL if message["role"] == "assistant" else USER_AVATAR_EMOJI
+        with st.chat_message(message["role"], avatar=avatar):
+            st.markdown(message["content"])
 
-    # Formulário de entrada de mensagem
-    with st.form(key='chat_form'):
+    # Formulário de chat
+    with st.form(key='chat_form', clear_on_submit=True):
         col1, col2 = st.columns([10, 2])
+        
         with col1:
             user_input = st.text_area(
-                "Digite sua mensagem aqui...", 
-                key='chat_input', 
+                "Digite sua mensagem...",
+                key='user_input',
                 height=50,
                 label_visibility="collapsed",
                 placeholder="Digite sua mensagem aqui..."
             )
+        
         with col2:
-            submit_button = st.form_submit_button(label='➤')
+            submit_button = st.form_submit_button(
+                label="➤",
+                use_container_width=True,
+                help="Enviar mensagem"
+            )
 
         if submit_button and user_input.strip():
+            # Adiciona mensagem do usuário
             st.session_state.messages.append({"role": "user", "content": user_input})
+            
+            # Exibe mensagem do usuário
             with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
                 st.markdown(user_input)
 
+            # Resposta do assistente
             with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
                 message_placeholder = st.empty()
                 message_placeholder.markdown("Digitando... ▌")
 
                 try:
-                    api_key = get_api_key()
-                    genai.configure(api_key=api_key)
+                    # Configura e chama a API do Gemini
+                    genai.configure(api_key=get_api_key())
                     model = genai.GenerativeModel('gemini-pro')
                     response = model.generate_content(user_input)
                     full_response = response.text
-
-                    message_placeholder.markdown(full_response)
                 except Exception as e:
-                    error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
-                    st.error(error_msg)
-                    full_response = error_msg
-                    message_placeholder.markdown(full_response)
+                    full_response = f"Desculpe, ocorreu um erro: {str(e)}"
+                    st.error(full_response)
 
+                # Exibe a resposta completa
+                message_placeholder.markdown(full_response)
+
+            # Adiciona resposta ao histórico
             st.session_state.messages.append({"role": "assistant", "content": full_response})
-            # Forçar atualização da página para rolar para baixo
+            
+            # Força atualização para rolar para baixo
             st.rerun()
+
+    # Script para rolagem automática
+    st.markdown("""
+    <script>
+        window.addEventListener('load', function() {
+            var chatContainer = document.querySelector('.chat-messages-container');
+            if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        });
+    </script>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
