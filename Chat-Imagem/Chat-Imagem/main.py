@@ -26,7 +26,7 @@ st.set_page_config(
 
 # Dimensões permitidas para SDXL
 ALLOWED_DIMENSIONS = [
-    (1024, 1024), 
+    (1024, 1024),
     (1152, 896), (896, 1152),
     (1216, 832), (832, 1216),
     (1344, 768), (768, 1344),
@@ -181,7 +181,7 @@ st.markdown(f"""
     .stChatInputContainer button:active {{
         transform: scale(0.97);
     }}
-    
+
     /* Sidebar styling */
     .stSidebar {{
         background-color: rgba(255, 255, 255, 0.8);
@@ -190,7 +190,7 @@ st.markdown(f"""
         margin: 1rem;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
     }}
-    
+
     /* Button styling */
     .stDownloadButton button {{
         background-color: #9C27B0 !important;
@@ -213,21 +213,25 @@ def main():
     # Sidebar para configurações
     with st.sidebar:
         st.title("⚙️ Settings")
-        
-        # Tenta pegar a API key dos secrets ou variáveis de ambiente
-        if 'STABILITY_API_KEY' in st.secrets:
-            api_key = st.secrets['STABILITY_API_KEY']
-            st.success("API Key loaded automatically!")
-        elif os.getenv('STABILITY_API_KEY'):
-            api_key = os.getenv('STABILITY_API_KEY')
-            st.success("API Key loaded from environment!")
-        else:
-            api_key = st.text_input("Enter your Stability AI API Key", type="password")
-            if not api_key:
-                st.warning("You can set a permanent key in app settings")
-        
+        api_key = st.text_input("Enter your Stability AI API Key", type="password")
         st.markdown("[Get API Key](https://platform.stability.ai/)")
-        
+
+        st.divider()
+        st.markdown("### Generation Parameters")
+        cfg_scale = st.slider("Creativity (CFG Scale)", 1.0, 20.0, 7.0)
+        steps = st.slider("Steps", 10, 150, 30)
+
+        # Selecionador de dimensões permitidas
+        dimension_options = [f"{w}×{h}" for w, h in ALLOWED_DIMENSIONS]
+        selected_dim = st.selectbox("Dimensions", dimension_options, index=0)
+        width, height = map(int, selected_dim.split('×'))
+
+        sampler = st.selectbox("Sampling Method", [
+            "DDIM", "DDPM", "K_DPMPP_2M", "K_DPMPP_2S_ANCESTRAL",
+            "K_DPM_2", "K_DPM_2_ANCESTRAL", "K_EULER",
+            "K_EULER_ANCESTRAL", "K_HEUN", "K_LMS"
+        ], index=6)
+
         st.divider()
         st.markdown("Made with ❤️ using [Stability AI](https://stability.ai/) and [Streamlit](https://streamlit.io/)")
 
@@ -238,7 +242,7 @@ def main():
     # Container para as mensagens com barra de rolagem
     with st.container():
         chat_container = st.markdown('<div class="chat-messages-container" id="chat-container">', unsafe_allow_html=True)
-        
+
         # Exibe o histórico de mensagens
         for message in st.session_state.messages:
             role = message["role"]
@@ -249,7 +253,7 @@ def main():
                     st.image(content)
                 else:
                     st.markdown(content)
-        
+
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Função para traduzir para inglês
@@ -265,10 +269,10 @@ def main():
     def generate_image_with_stability(prompt, api_key, cfg_scale, steps, width, height, sampler):
         engine_id = "stable-diffusion-xl-1024-v1-0"
         api_host = "https://api.stability.ai"
-        
+
         # Garante que o prompt está em inglês
         english_prompt = translate_to_english(prompt)
-        
+
         response = requests.post(
             f"{api_host}/v1/generation/{engine_id}/text-to-image",
             headers={
@@ -289,9 +293,9 @@ def main():
 
         if response.status_code != 200:
             raise Exception(f"API Error: {response.text}")
-        
+
         data = response.json()
-        
+
         # Corrige o tratamento da imagem base64
         image_data = base64.b64decode(data["artifacts"][0]["base64"])  # Decodifica a string base64 para bytes
         return Image.open(io.BytesIO(image_data))
@@ -300,19 +304,19 @@ def main():
     if prompt := st.chat_input("Describe the image you want to create..."):
         # Adiciona a mensagem do usuário ao histórico
         st.session_state.messages.append({
-            "role": "user", 
+            "role": "user",
             "content": prompt,
             "type": "text"
         })
-        
+
         with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
             st.markdown(prompt)
-        
+
         # Verifica se a API key foi fornecida
         if not api_key:
             st.error("Please enter your Stability AI API Key")
             st.stop()
-        
+
         # Resposta do assistente
         with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
             with st.spinner("Generating your image..."):
@@ -321,28 +325,28 @@ def main():
                     generated_image = generate_image_with_stability(
                         prompt=prompt,
                         api_key=api_key,
-                        cfg_scale=cfg_scale,
+                        cfg_scale=st.session_state.get('cfg_scale', 7.0),  # Use st.session_state para persistir
                         steps=steps,
                         width=width,
                         height=height,
                         sampler=sampler
                     )
-                    
+
                     # Exibe a imagem
                     st.image(generated_image, use_column_width=True)
-                    
+
                     # Adiciona ao histórico
                     st.session_state.messages.append({
-                        "role": "assistant", 
+                        "role": "assistant",
                         "content": generated_image,
                         "type": "image"
                     })
-                    
+
                     # Opção para baixar a imagem
                     img_byte_arr = io.BytesIO()
                     generated_image.save(img_byte_arr, format='PNG')
                     img_byte_arr = img_byte_arr.getvalue()
-                    
+
                     st.download_button(
                         label="Download Image",
                         data=img_byte_arr,
@@ -350,15 +354,15 @@ def main():
                         mime="image/png",
                         key=f"download_{datetime.now().timestamp()}"
                     )
-                    
+
                 except Exception as e:
                     st.error(f"An error occurred: {str(e)}")
                     st.session_state.messages.append({
-                        "role": "assistant", 
+                        "role": "assistant",
                         "content": f"Sorry, an error occurred: {str(e)}",
                         "type": "text"
                     })
-        
+
         # Javascript para rolar para a última mensagem
         st.markdown('<script>var chatContainer = document.getElementById("chat-container"); chatContainer.scrollTop = chatContainer.scrollHeight;</script>', unsafe_allow_html=True)
 
@@ -380,4 +384,4 @@ def main():
         st.code("A golden mechanical dragon with energy wings, complex details, snowy mountain background, game concept art style")
 
 if __name__ == "__main__":
-    main()  
+    main()
