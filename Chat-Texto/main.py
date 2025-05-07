@@ -31,56 +31,51 @@ st.markdown(f"""
 <style>
     /* --- Fundo Geral --- */
     .stApp {{
-        background-color: #A020F0; /* Roxo (será substituído pela imagem se o link for fornecido) */
+        background-color: #A020F0;
         {f"background-image: url('{BACKGROUND_IMAGE_URL}'); background-size: cover; background-repeat: no-repeat;" if BACKGROUND_IMAGE_URL else ""}
-        font-size: 0.95rem; /* Diminuindo um pouco o tamanho da fonte geral */
-        display: flex; /* Usando Flexbox para centralizar o container do chat */
-        justify-content: center; /* Centraliza horizontalmente */
-        align-items: center; /* Centraliza verticalmente */
-        min-height: 100vh; /* Garante que o fundo ocupe toda a altura da tela */
-        margin: 0; /* Remove margens padrão do body */
+        font-size: 0.95rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
     }}
 
-    /* --- Container Principal do Chat (agora englobando a input) --- */
+    /* --- Container Principal do Chat --- */
     .block-container {{
         max-width: 580px;
-        margin: 2rem auto; /* Centraliza horizontalmente e adiciona margem vertical */
-        padding: 1rem 1.5rem 1.5rem 1.5rem; /* Reduzindo o padding inferior do container principal */
-        background-color: rgba(255, 255, 255, 0.8); /* Fundo branco com 80% de opacidade */
+        margin: 2rem auto;
+        padding: 1rem 1.5rem 1.5rem 1.5rem;
+        background-color: rgba(255, 255, 255, 0.8);
         border-radius: 15px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
         border: 1px solid #D1E8D2;
         display: flex;
         flex-direction: column;
-        align-items: stretch; /* Estica os itens internos para ocupar a largura */
+        align-items: stretch;
     }}
 
-    /* --- Área de Mensagens (dentro do block-container) --- */
+    /* --- Área de Mensagens --- */
     .chat-messages-container {{
         overflow-y: auto;
-        max-height: 500px; /* Altura máxima para a área de mensagens */
-        padding-bottom: 1rem; /* Espaço antes da área de input */
+        max-height: 500px;
+        padding-bottom: 1rem;
     }}
 
-    /* Estilização da barra de rolagem (Webkit browsers) */
+    /* Estilização da barra de rolagem */
     .chat-messages-container::-webkit-scrollbar {{
         width: 8px;
     }}
-
     .chat-messages-container::-webkit-scrollbar-track {{
-        background: rgba(241, 241, 241, 0.5); /* Barra de rolagem um pouco transparente */
+        background: rgba(241, 241, 241, 0.5);
     }}
-
     .chat-messages-container::-webkit-scrollbar-thumb {{
         background: #888;
         border-radius: 4px;
     }}
-
     .chat-messages-container::-webkit-scrollbar-thumb:hover {{
         background: #555;
     }}
-
-    /* Estilização da barra de rolagem (Firefox) */
     .chat-messages-container {{
         scrollbar-width: thin;
         scrollbar-color: #888 rgba(241, 241, 241, 0.5);
@@ -93,7 +88,7 @@ st.markdown(f"""
         align-items: center;
         margin-bottom: 1rem;
         width: 100%;
-        padding-top: 1rem; /* Adicionando um pouco de espaço no topo */
+        padding-top: 1rem;
     }}
     .avatar-title-container img.chat-avatar {{
         width: 75px;
@@ -118,12 +113,12 @@ st.markdown(f"""
         margin-bottom: 10px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
         border: none;
-        word-wrap: break-word; /* Garante que as palavras longas quebrem para a próxima linha */
+        word-wrap: break-word;
         color: #111111;
         font-size: 0.9rem;
         align-self: flex-start;
-        width: 100%; /* Faz a mensagem ocupar a largura total disponível */
-        display: block; /* Garante que ocupe a linha inteira */
+        width: 100%;
+        display: block;
     }}
     [data-testid="chatAvatarIcon-user"] + div.stChatMessage {{
         align-self: flex-end;
@@ -136,22 +131,20 @@ st.markdown(f"""
     .stChatMessage p, .stChatMessage li, .stChatMessage .stMarkdown {{
         color: #111111 !important;
     }}
-
-    /* Mensagens do Usuário */
     [data-testid="chatAvatarIcon-user"] + div.stChatMessage {{
         background-color: #D1C4E9;
         margin-left: auto;
     }}
 
-    /* --- Área de Input do Usuário (agora dentro do block-container) --- */
+    /* --- Área de Input do Usuário --- */
     .stChatInputContainer {{
-        background-color: white; /* Cor de fundo branca */
+        background-color: white;
         padding: 8px 1rem;
         display: flex;
         align-items: center;
-        border-top: 1px solid #D1E8D2; /* Adicionando uma borda sutil para separar das mensagens */
-        border-bottom-left-radius: 15px; /* Arredondando a parte inferior esquerda */
-        border-bottom-right-radius: 15px; /* Arredondando a parte inferior direita */
+        border-top: 1px solid #D1E8D2;
+        border-bottom-left-radius: 15px;
+        border-bottom-right-radius: 15px;
     }}
     .stChatInputContainer textarea {{
         flex-grow: 1;
@@ -160,11 +153,11 @@ st.markdown(f"""
         border-radius: 18px;
         padding: 8px 12px;
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        color: #111111;
+        color: #000000; /* Garante que o texto seja preto */
         font-size: 0.9rem;
         margin-right: 6px;
-        height: 30px; /* Altura inicial da caixa de texto */
-        resize: none; /* Impede o redimensionamento manual */
+        height: 30px;
+        resize: none;
     }}
     .stChatInputContainer button {{
         background-color: #9C27B0;
@@ -182,7 +175,6 @@ st.markdown(f"""
     .stChatInputContainer button:active {{
         transform: scale(0.97);
     }}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -198,48 +190,47 @@ def main():
         st.session_state.messages = [{"role": "assistant", "content": f"Oii meu querido, fala comigo, tem alguma pergunta?"}]
 
     # Container para as mensagens com barra de rolagem
-    st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
-    for message in st.session_state.messages:
-        role = message["role"]
-        content = message["content"]
-        avatar_display = AVATAR_ANIMATED_URL if role == "assistant" else USER_AVATAR_EMOJI
-        with st.chat_message(role, avatar=avatar_display):
-            st.markdown(content)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        chat_container = st.markdown('<div class="chat-messages-container" id="chat-container">', unsafe_allow_html=True)
+        for message in st.session_state.messages:
+            role = message["role"]
+            content = message["content"]
+            avatar_display = AVATAR_ANIMATED_URL if role == "assistant" else USER_AVATAR_EMOJI
+            with st.chat_message(role, avatar=avatar_display):
+                st.markdown(content)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if prompt := st.chat_input("Digite sua mensagem aqui...", key="chat_input"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
-            st.markdown(prompt)
+        # Formulário de entrada de mensagem
+        with st.form(key='chat_form'):
+            user_input = st.text_area("Digite sua mensagem aqui...", key='chat_input', height=50)
+            submit_button = st.form_submit_button(label='Enviar')
 
-        with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
-            message_placeholder = st.empty()
-            message_placeholder.markdown("▌")
-            message_placeholder.markdown("Digitando... ▌")
+            if submit_button and user_input:
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
+                    st.markdown(user_input)
 
-            try:
-                api_key = get_api_key()
-                genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                response = model.generate_content(prompt)
-                full_response = response.text
+                with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
+                    message_placeholder = st.empty()
+                    message_placeholder.markdown("Digitando... ▌")
 
-                message_placeholder.markdown("")
-                if full_response:
-                    for i in range(len(full_response)):
-                        message_placeholder.markdown(full_response[:i+1] + "▌")
-                        time.sleep(0.02)
-                    message_placeholder.markdown(full_response)
-                else:
-                    message_placeholder.markdown("_Resposta vazia._")
+                    try:
+                        api_key = get_api_key()
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-2.0-flash')
+                        response = model.generate_content(user_input)
+                        full_response = response.text
 
-            except Exception as e:
-                error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
-                st.error(error_msg)
-                full_response = error_msg
-                message_placeholder.markdown(full_response)
+                        message_placeholder.markdown(full_response)
+                    except Exception as e:
+                        error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
+                        st.error(error_msg)
+                        full_response = error_msg
+                        message_placeholder.markdown(full_response)
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                # Javascript para rolar para a última mensagem
+                st.markdown('<script>var chatContainer = document.getElementById("chat-container"); chatContainer.scrollTop = chatContainer.scrollHeight;</script>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
