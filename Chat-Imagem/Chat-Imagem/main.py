@@ -6,9 +6,13 @@ from datetime import datetime
 from googletrans import Translator
 import base64
 import os
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente
+load_dotenv()
 
 AVATAR_ANIMATED_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3lxeGY1MnV2OG0yaGQxcDhxcWNib3N0aG8ydGt1bHp4eTdoaDJicyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/mlvseq9yvZhba/giphy.gif"
-ASSISTANT_NAME = "Gerador de Imagens IA"
+ASSISTANT_NAME = "AI Image Generator"
 USER_AVATAR_EMOJI = "👤"
 BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjduZ2l2MmhjaWx4OWE5eXdvcjBvcWlianYxY2w5NTc4eW91YXlrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
 
@@ -208,32 +212,28 @@ def main():
 
     # Sidebar para configurações
     with st.sidebar:
-        st.title("⚙️ Configurações")
-        api_key = st.text_input("Insira sua Chave de API da Stability AI", type="password")
-        st.markdown("[Obter Chave de API](https://platform.stability.ai/)")
+        st.title("⚙️ Settings")
+        
+        # Tenta pegar a API key dos secrets ou variáveis de ambiente
+        if 'STABILITY_API_KEY' in st.secrets:
+            api_key = st.secrets['STABILITY_API_KEY']
+            st.success("API Key loaded automatically!")
+        elif os.getenv('STABILITY_API_KEY'):
+            api_key = os.getenv('STABILITY_API_KEY')
+            st.success("API Key loaded from environment!")
+        else:
+            api_key = st.text_input("Enter your Stability AI API Key", type="password")
+            if not api_key:
+                st.warning("You can set a permanent key in app settings")
+        
+        st.markdown("[Get API Key](https://platform.stability.ai/)")
         
         st.divider()
-        st.markdown("### Parâmetros de Geração")
-        cfg_scale = st.slider("Criatividade (Escala CFG)", 1.0, 20.0, 7.0)
-        steps = st.slider("Passos de Geração", 10, 150, 30)
-        
-        # Selecionador de dimensões permitidas
-        dimension_options = [f"{w}×{h}" for w, h in ALLOWED_DIMENSIONS]
-        selected_dim = st.selectbox("Dimensões", dimension_options, index=0)
-        width, height = map(int, selected_dim.split('×'))
-        
-        sampler = st.selectbox("Método de Amostragem", [
-            "DDIM", "DDPM", "K_DPMPP_2M", "K_DPMPP_2S_ANCESTRAL", 
-            "K_DPM_2", "K_DPM_2_ANCESTRAL", "K_EULER", 
-            "K_EULER_ANCESTRAL", "K_HEUN", "K_LMS"
-        ], index=6)
-        
-        st.divider()
-        st.markdown("Feito com ❤️ usando [Stability AI](https://stability.ai/) e [Streamlit](https://streamlit.io/)")
+        st.markdown("Made with ❤️ using [Stability AI](https://stability.ai/) and [Streamlit](https://streamlit.io/)")
 
     # Inicializa o histórico de chat
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Descreva a imagem que deseja criar e eu a gerarei para você!"}]
+        st.session_state.messages = [{"role": "assistant", "content": "Describe the image you want to create and I'll generate it for you!"}]
 
     # Container para as mensagens com barra de rolagem
     with st.container():
@@ -288,7 +288,7 @@ def main():
         )
 
         if response.status_code != 200:
-            raise Exception(f"Erro na API: {response.text}")
+            raise Exception(f"API Error: {response.text}")
         
         data = response.json()
         
@@ -297,7 +297,7 @@ def main():
         return Image.open(io.BytesIO(image_data))
 
     # Input do usuário
-    if prompt := st.chat_input("Descreva a imagem que deseja criar..."):
+    if prompt := st.chat_input("Describe the image you want to create..."):
         # Adiciona a mensagem do usuário ao histórico
         st.session_state.messages.append({
             "role": "user", 
@@ -310,12 +310,12 @@ def main():
         
         # Verifica se a API key foi fornecida
         if not api_key:
-            st.error("Por favor, insira sua Chave de API da Stability AI")
+            st.error("Please enter your Stability AI API Key")
             st.stop()
         
         # Resposta do assistente
         with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
-            with st.spinner("Gerando sua imagem..."):
+            with st.spinner("Generating your image..."):
                 try:
                     # Gera a imagem
                     generated_image = generate_image_with_stability(
@@ -344,18 +344,18 @@ def main():
                     img_byte_arr = img_byte_arr.getvalue()
                     
                     st.download_button(
-                        label="Baixar Imagem",
+                        label="Download Image",
                         data=img_byte_arr,
-                        file_name=f"imagem_gerada_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                        file_name=f"generated_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
                         mime="image/png",
                         key=f"download_{datetime.now().timestamp()}"
                     )
                     
                 except Exception as e:
-                    st.error(f"Ocorreu um erro: {str(e)}")
+                    st.error(f"An error occurred: {str(e)}")
                     st.session_state.messages.append({
                         "role": "assistant", 
-                        "content": f"Desculpe, ocorreu um erro: {str(e)}",
+                        "content": f"Sorry, an error occurred: {str(e)}",
                         "type": "text"
                     })
         
@@ -364,20 +364,20 @@ def main():
 
     # Seção de exemplos
     st.divider()
-    st.markdown("### 📌 Exemplos de Prompts")
+    st.markdown("### 📌 Prompt Examples")
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("**Retrato**")
-        st.code("Um retrato realista de uma idosa com olhos sábios, detalhes faciais intrincados, iluminação suave de estúdio")
+        st.markdown("**Portrait**")
+        st.code("A realistic portrait of an elderly woman with wise eyes, intricate facial details, soft studio lighting")
 
     with col2:
-        st.markdown("**Paisagem**")
-        st.code("Uma paisagem futurista de uma cidade flutuante sobre o oceano ao pôr do sol, estilo cyberpunk, cores vibrantes")
+        st.markdown("**Landscape**")
+        st.code("A futuristic landscape of a floating city over the ocean at sunset, cyberpunk style, vibrant colors")
 
     with col3:
-        st.markdown("**Arte Conceitual**")
-        st.code("Um dragão mecânico dourado com asas de energia, detalhes complexos, fundo de montanhas nevadas, estilo de arte conceitual para jogos")
+        st.markdown("**Concept Art**")
+        st.code("A golden mechanical dragon with energy wings, complex details, snowy mountain background, game concept art style")
 
 if __name__ == "__main__":
-    main()
+    main()  
