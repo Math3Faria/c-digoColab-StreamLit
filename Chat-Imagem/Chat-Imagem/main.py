@@ -12,20 +12,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 AVATAR_ANIMATED_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3lxeGY1MnV2OG0yaGQxcDhxcWNib3N0aG8ydGt1bHp4eTdoaDJicyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/mlvseq9yvZhba/giphy.gif"
-ASSISTANT_NAME = "AI Image Generator"
-USER_AVATAR_EMOJI = "👤"
-BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjduZ2l2MmhjaWx4OWE5eXdvcjBvcWlianYxY2w5NTc4eW91YXlrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
+NOME_ASSISTENTE = "Gerador de Imagens com IA"
+EMOJI_AVATAR_USUARIO = "👤"
+URL_IMAGEM_DE_FUNDO = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjduZ2l2MmhjaWx4OWE5eXdvcjBvcWlianYxY2w5NTc4eW91YXlrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
 
 # Configuração da página
 st.set_page_config(
-    page_title=ASSISTANT_NAME,
+    page_title=NOME_ASSISTENTE,
     page_icon="🎨",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
 # Dimensões permitidas para SDXL
-ALLOWED_DIMENSIONS = [
+DIMENSOES_PERMITIDAS = [
     (1024, 1024),
     (1152, 896), (896, 1152),
     (1216, 832), (832, 1216),
@@ -38,7 +38,7 @@ st.markdown(f"""
     /* --- Fundo Geral --- */
     .stApp {{
         background-color: #A020F0;
-        {f"background-image: url('{BACKGROUND_IMAGE_URL}'); background-size: cover; background-repeat: no-repeat;" if BACKGROUND_IMAGE_URL else ""}
+        {f"background-image: url('{URL_IMAGEM_DE_FUNDO}'); background-size: cover; background-repeat: no-repeat;" if URL_IMAGEM_DE_FUNDO else ""}
         font-size: 0.95rem;
         display: flex;
         justify-content: center;
@@ -206,160 +206,160 @@ def main():
     st.markdown(f"""
     <div class="avatar-title-container">
         <img src="{AVATAR_ANIMATED_URL}" alt="Avatar Animado" class="chat-avatar">
-        <h1>{ASSISTANT_NAME}</h1>
+        <h1>{NOME_ASSISTENTE}</h1>
     </div>
     """, unsafe_allow_html=True)
 
-    # Sidebar para configurações
+    # Barra lateral para configurações
     with st.sidebar:
-        st.title("⚙️ Settings")
-        api_key = st.text_input("Enter your Stability AI API Key", type="password")
-        st.markdown("[Get API Key](https://platform.stability.ai/)")
+        st.title("⚙️ Configurações")
+        chave_api = st.text_input("Insira sua chave da API Stability AI", type="password")
+        st.markdown("[Obter Chave da API](https://platform.stability.ai/)")
 
         st.divider()
-        st.markdown("### Generation Parameters")
-        cfg_scale = st.slider("Creativity (CFG Scale)", 1.0, 20.0, 7.0)
-        steps = st.slider("Steps", 10, 150, 30)
+        st.markdown("### Parâmetros de Geração")
+        escala_cfg = st.slider("Criatividade (Escala CFG)", 1.0, 20.0, 7.0)
+        passos = st.slider("Passos", 10, 150, 30)
 
         # Selecionador de dimensões permitidas
-        dimension_options = [f"{w}×{h}" for w, h in ALLOWED_DIMENSIONS]
-        selected_dim = st.selectbox("Dimensions", dimension_options, index=0)
-        width, height = map(int, selected_dim.split('×'))
+        opcoes_dimensao = [f"{w}×{h}" for w, h in DIMENSOES_PERMITIDAS]
+        dimensao_selecionada = st.selectbox("Dimensões", opcoes_dimensao, index=0)
+        largura, altura = map(int, dimensao_selecionada.split('×'))
 
-        sampler = st.selectbox("Sampling Method", [
+        metodo_amostragem = st.selectbox("Método de Amostragem", [
             "DDIM", "DDPM", "K_DPMPP_2M", "K_DPMPP_2S_ANCESTRAL",
             "K_DPM_2", "K_DPM_2_ANCESTRAL", "K_EULER",
             "K_EULER_ANCESTRAL", "K_HEUN", "K_LMS"
         ], index=6)
 
         st.divider()
-        st.markdown("Made with ❤️ using [Stability AI](https://stability.ai/) and [Streamlit](https://streamlit.io/)")
+        st.markdown(f"Feito com ❤️ usando [Stability AI](https://stability.ai/) e [Streamlit](https://streamlit.io/) em {datetime.now().year}")
 
     # Inicializa o histórico de chat
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Describe the image you want to create and I'll generate it for you!"}]
+    if "mensagens" not in st.session_state:
+        st.session_state.mensagens = [{"role": "assistant", "content": "Descreva a imagem que você quer criar e eu a gerarei para você!"}]
 
     # Container para as mensagens com barra de rolagem
     with st.container():
-        chat_container = st.markdown('<div class="chat-messages-container" id="chat-container">', unsafe_allow_html=True)
+        container_chat = st.markdown('<div class="chat-messages-container" id="chat-container">', unsafe_allow_html=True)
 
         # Exibe o histórico de mensagens
-        for message in st.session_state.messages:
-            role = message["role"]
-            content = message["content"]
-            avatar_display = AVATAR_ANIMATED_URL if role == "assistant" else USER_AVATAR_EMOJI
-            with st.chat_message(role, avatar=avatar_display):
-                if "type" in message and message["type"] == "image":
-                    st.image(content)
+        for mensagem in st.session_state.mensagens:
+            role = mensagem["role"]
+            conteudo = mensagem["content"]
+            avatar_exibicao = AVATAR_ANIMATED_URL if role == "assistant" else EMOJI_AVATAR_USUARIO
+            with st.chat_message(role, avatar=avatar_exibicao):
+                if "type" in mensagem and mensagem["type"] == "image":
+                    st.image(conteudo)
                 else:
-                    st.markdown(content)
+                    st.markdown(conteudo)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Função para traduzir para inglês
-    def translate_to_english(text):
+    def traduzir_para_ingles(texto):
         try:
-            translator = Translator()
-            translation = translator.translate(text, dest='en')
-            return translation.text
+            tradutor = Translator()
+            traducao = tradutor.translate(texto, dest='en')
+            return traducao.text
         except:
-            return text  # Se falhar, retorna o texto original
+            return texto  # Se falhar, retorna o texto original
 
     # Função para gerar imagens usando a API do Stability AI
-    def generate_image_with_stability(prompt, api_key, cfg_scale, steps, width, height, sampler):
+    def gerar_imagem_com_stability(prompt, chave_api, escala_cfg, passos, largura, altura, metodo_amostragem):
         engine_id = "stable-diffusion-xl-1024-v1-0"
         api_host = "https://api.stability.ai"
 
         # Garante que o prompt está em inglês
-        english_prompt = translate_to_english(prompt)
+        prompt_ingles = traduzir_para_ingles(prompt)
 
         response = requests.post(
             f"{api_host}/v1/generation/{engine_id}/text-to-image",
             headers={
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "Authorization": f"Bearer {api_key}"
+                "Authorization": f"Bearer {chave_api}"
             },
             json={
-                "text_prompts": [{"text": english_prompt}],
-                "cfg_scale": cfg_scale,
-                "height": height,
-                "width": width,
+                "text_prompts": [{"text": prompt_ingles}],
+                "cfg_scale": escala_cfg,
+                "height": altura,
+                "width": largura,
                 "samples": 1,
-                "steps": steps,
-                "sampler": sampler,
+                "steps": passos,
+                "sampler": metodo_amostragem,
             },
         )
 
         if response.status_code != 200:
-            raise Exception(f"API Error: {response.text}")
+            raise Exception(f"Erro na API: {response.text}")
 
         data = response.json()
 
         # Corrige o tratamento da imagem base64
-        image_data = base64.b64decode(data["artifacts"][0]["base64"])  # Decodifica a string base64 para bytes
-        return Image.open(io.BytesIO(image_data))
+        dados_imagem = base64.b64decode(data["artifacts"][0]["base64"])  # Decodifica a string base64 para bytes
+        return Image.open(io.BytesIO(dados_imagem))
 
     # Input do usuário
-    if prompt := st.chat_input("Describe the image you want to create..."):
+    if prompt_usuario := st.chat_input("Descreva a imagem que você quer criar..."):
         # Adiciona a mensagem do usuário ao histórico
-        st.session_state.messages.append({
+        st.session_state.mensagens.append({
             "role": "user",
-            "content": prompt,
+            "content": prompt_usuario,
             "type": "text"
         })
 
-        with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
-            st.markdown(prompt)
+        with st.chat_message("user", avatar=EMOJI_AVATAR_USUARIO):
+            st.markdown(prompt_usuario)
 
-        # Verifica se a API key foi fornecida
-        if not api_key:
-            st.error("Please enter your Stability AI API Key")
+        # Verifica se a chave da API foi fornecida
+        if not chave_api:
+            st.error("Por favor, insira sua chave da API Stability AI")
             st.stop()
 
         # Resposta do assistente
         with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
-            with st.spinner("Generating your image..."):
+            with st.spinner("Gerando sua imagem..."):
                 try:
                     # Gera a imagem
-                    generated_image = generate_image_with_stability(
-                        prompt=prompt,
-                        api_key=api_key,
-                        cfg_scale=st.session_state.get('cfg_scale', 7.0),  # Use st.session_state para persistir
-                        steps=steps,
-                        width=width,
-                        height=height,
-                        sampler=sampler
+                    imagem_gerada = gerar_imagem_com_stability(
+                        prompt=prompt_usuario,
+                        chave_api=chave_api,
+                        escala_cfg=st.session_state.get('escala_cfg', 7.0),  # Use st.session_state para persistir
+                        passos=passos,
+                        largura=largura,
+                        altura=altura,
+                        metodo_amostragem=metodo_amostragem
                     )
 
                     # Exibe a imagem
-                    st.image(generated_image, use_column_width=True)
+                    st.image(imagem_gerada, use_column_width=True)
 
                     # Adiciona ao histórico
-                    st.session_state.messages.append({
+                    st.session_state.mensagens.append({
                         "role": "assistant",
-                        "content": generated_image,
+                        "content": imagem_gerada,
                         "type": "image"
                     })
 
                     # Opção para baixar a imagem
-                    img_byte_arr = io.BytesIO()
-                    generated_image.save(img_byte_arr, format='PNG')
-                    img_byte_arr = img_byte_arr.getvalue()
+                    buffer_imagem = io.BytesIO()
+                    imagem_gerada.save(buffer_imagem, format='PNG')
+                    bytes_imagem = buffer_imagem.getvalue()
 
                     st.download_button(
-                        label="Download Image",
-                        data=img_byte_arr,
-                        file_name=f"generated_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                        label="Baixar Imagem",
+                        data=bytes_imagem,
+                        file_name=f"imagem_gerada_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
                         mime="image/png",
                         key=f"download_{datetime.now().timestamp()}"
                     )
 
                 except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
-                    st.session_state.messages.append({
+                    st.error(f"Ocorreu um erro: {str(e)}")
+                    st.session_state.mensagens.append({
                         "role": "assistant",
-                        "content": f"Sorry, an error occurred: {str(e)}",
+                        "content": f"Desculpe, ocorreu um erro: {str(e)}",
                         "type": "text"
                     })
 
@@ -368,20 +368,4 @@ def main():
 
     # Seção de exemplos
     st.divider()
-    st.markdown("### 📌 Prompt Examples")
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown("**Portrait**")
-        st.code("A realistic portrait of an elderly woman with wise eyes, intricate facial details, soft studio lighting")
-
-    with col2:
-        st.markdown("**Landscape**")
-        st.code("A futuristic landscape of a floating city over the ocean at sunset, cyberpunk style, vibrant colors")
-
-    with col3:
-        st.markdown("**Concept Art**")
-        st.code("A golden mechanical dragon with energy wings, complex details, snowy mountain background, game concept art style")
-
-if __name__ == "__main__":
-    main()
+    st.markdown("### 📌 Exemplos de Prompt")
