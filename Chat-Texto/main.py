@@ -2,12 +2,15 @@ import os
 import google.generativeai as genai
 import streamlit as st
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
 AVATAR_ANIMATED_URL = "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3lxeGY1MnV2OG0yaGQxcDhxcWNib3N0aG8ydGt1bHp4eTdoaDJicyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/mlvseq9yvZhba/giphy.gif"
 ASSISTANT_NAME = "Assistente Matheus"
 USER_AVATAR_EMOJI = "👤"
+
+# *** COLE O LINK DA IMAGEM DE FUNDO AQUI: ***
 BACKGROUND_IMAGE_URL = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjduZ2l2MmhjaWx4OWE5eXdvcjBvcWlianYxY2w5NTc4eW91YXlrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ov9jJuT2pEVMRMas0/giphy.gif"
 
 st.set_page_config(
@@ -134,32 +137,43 @@ st.markdown(f"""
     }}
 
     /* --- Área de Input do Usuário --- */
-    .stTextArea textarea {{
-        background-color: #FFFFFF !important;
-        border: 1px solid #C5C5C5 !important;
-        border-radius: 18px !important;
-        padding: 8px 12px !important;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1) !important;
-        color: #000000 !important;
-        font-size: 0.9rem !important;
-        height: 50px !important;
-        resize: none !important;
+    .stChatInputContainer {{
+        background-color: white;
+        padding: 8px 1rem;
+        display: flex;
+        align-items: center;
+        border-top: 1px solid #D1E8D2;
+        border-bottom-left-radius: 15px;
+        border-bottom-right-radius: 15px;
     }}
-    .stButton button {{
-        background-color: #9C27B0 !important;
-        color: white !important;
-        border-radius: 50% !important;
-        border: none !important;
-        width: 35px !important;
-        height: 35px !important;
-        transition: background-color 0.2s ease, transform 0.1s ease !important;
+    .stChatInputContainer textarea {{
+        flex-grow: 1;
+        background-color: #FFFFFF;
+        border: 1px solid #C5C5C5;
+        border-radius: 18px;
+        padding: 8px 12px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        color: #000000; /* Garante que o texto seja preto */
+        font-size: 0.9rem;
+        margin-right: 6px;
+        height: 30px;
+        resize: none;
     }}
-    .stButton button:hover {{
-        background-color: #7B1FA2 !important;
-        transform: scale(1.03) !important;
+    .stChatInputContainer button {{
+        background-color: #9C27B0;
+        color: white;
+        border-radius: 50%;
+        border: none;
+        width: 35px;
+        height: 35px;
+        transition: background-color 0.2s ease, transform 0.1s ease;
     }}
-    .stButton button:active {{
-        transform: scale(0.97) !important;
+    .stChatInputContainer button:hover {{
+        background-color: #7B1FA2;
+        transform: scale(1.03);
+    }}
+    .stChatInputContainer button:active {{
+        transform: scale(0.97);
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -173,77 +187,50 @@ def main():
     """, unsafe_allow_html=True)
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "Oii meu querido, fala comigo, tem alguma pergunta?"}]
+        st.session_state.messages = [{"role": "assistant", "content": f"Oii meu querido, fala comigo, tem alguma pergunta?"}]
 
-    # Exibe todas as mensagens
-    for message in st.session_state.messages:
-        avatar = AVATAR_ANIMATED_URL if message["role"] == "assistant" else USER_AVATAR_EMOJI
-        with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
+    # Container para as mensagens com barra de rolagem
+    with st.container():
+        chat_container = st.markdown('<div class="chat-messages-container" id="chat-container">', unsafe_allow_html=True)
+        for message in st.session_state.messages:
+            role = message["role"]
+            content = message["content"]
+            avatar_display = AVATAR_ANIMATED_URL if role == "assistant" else USER_AVATAR_EMOJI
+            with st.chat_message(role, avatar=avatar_display):
+                st.markdown(content)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Formulário de chat
-    with st.form(key='chat_form', clear_on_submit=True):
-        col1, col2 = st.columns([10, 2])
-        
-        with col1:
-            user_input = st.text_area(
-                "Digite sua mensagem...",
-                key='user_input',
-                height=50,
-                label_visibility="collapsed",
-                placeholder="Digite sua mensagem aqui..."
-            )
-        
-        with col2:
-            submit_button = st.form_submit_button(
-                label="➤",
-                use_container_width=True,
-                help="Enviar mensagem"
-            )
+        # Formulário de entrada de mensagem
+        with st.form(key='chat_form'):
+            user_input = st.text_area("Digite sua mensagem aqui...", key='chat_input', height=50)
+            submit_button = st.form_submit_button(label='Enviar')
 
-        if submit_button and user_input.strip():
-            # Adiciona mensagem do usuário
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            
-            # Exibe mensagem do usuário
-            with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
-                st.markdown(user_input)
+            if submit_button and user_input:
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                with st.chat_message("user", avatar=USER_AVATAR_EMOJI):
+                    st.markdown(user_input)
 
-            # Resposta do assistente
-            with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
-                message_placeholder = st.empty()
-                message_placeholder.markdown("Digitando... ▌")
+                with st.chat_message("assistant", avatar=AVATAR_ANIMATED_URL):
+                    message_placeholder = st.empty()
+                    message_placeholder.markdown("Digitando... ▌")
 
-                try:
-                    # Configura e chama a API do Gemini
-                    genai.configure(api_key=get_api_key())
-                    model = genai.GenerativeModel('gemini-pro')
-                    response = model.generate_content(user_input)
-                    full_response = response.text
-                except Exception as e:
-                    full_response = f"Desculpe, ocorreu um erro: {str(e)}"
-                    st.error(full_response)
+                    try:
+                        api_key = get_api_key()
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-2.0-flash')
+                        response = model.generate_content(user_input)
+                        full_response = response.text
 
-                # Exibe a resposta completa
-                message_placeholder.markdown(full_response)
+                        message_placeholder.markdown(full_response)
+                    except Exception as e:
+                        error_msg = f"Desculpe, ocorreu um erro: {str(e)}"
+                        st.error(error_msg)
+                        full_response = error_msg
+                        message_placeholder.markdown(full_response)
 
-            # Adiciona resposta ao histórico
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
-            # Força atualização para rolar para baixo
-            st.rerun()
-
-    # Script para rolagem automática
-    st.markdown("""
-    <script>
-        window.addEventListener('load', function() {
-            var chatContainer = document.querySelector('.chat-messages-container');
-            if (chatContainer) {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-        });
-    </script>
-    """, unsafe_allow_html=True)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                # Javascript para rolar para a última mensagem
+                st.markdown('<script>var chatContainer = document.getElementById("chat-container"); chatContainer.scrollTop = chatContainer.scrollHeight;</script>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
